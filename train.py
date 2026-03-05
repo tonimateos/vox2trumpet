@@ -1,0 +1,202 @@
+import os
+import argparse
+import torch
+import torch.nn as nn
+from torch.utils.data import DataLoader
+from tqdm import tqdm
+import wandb
+import json
+import numpy as np
+
+from model import NeuralGuitar
+from data import NeuralGuitarDataset
+from loss import MultiResolutionSTFTLoss
+
+def train(args):
+    # Enable anomaly detection for deep debugging of NaNs/Infs
+    torch.autograd.set_detect_anomaly(True)
+    
+    # Load external config
+    with open(args.config_file, "r") as f:
+        all_configs = json.load(f)
+    net_config = all_configs[args.config_name]
+    
+    # 1. Initialize W&B (Week 2 Alignment)
+    wandb.init(project="vox2guit", config=args)
+    config = wandb.config
+    
+    if torch.cuda.is_available():
+        device = torch.device('cuda')
+    elif torch.backends.mps.is_available():
+        device = torch.device('mps')
+    else:
+        device = torch.device('cpu')
+    print(f"Using device: {device}")
+    
+    # 2. Data
+    hf_repo_id = args.hf_repo_id.strip() if args.hf_repo_id else None
+    dataset = NeuralGuitarDataset(
+        args.data_dir, 
+        sequence_length=args.seq_len, 
+        repo_id=hf_repo_id
+    )
+    dataloader = DataLoader(dataset, batch_size=args.batch_size, shuffle=True, num_workers=0)
+    
+    # 3. Model
+    model = NeuralGuitar(config=net_config).to(device)
+    
+    # 4. Optimizer & Loss
+    initial_lr = args.lr if args.lr is not None else net_config.get("learning_rate", 1e-4)
+    optimizer = torch.optim.Adam(model.parameters(), lr=initial_lr)
+    loss_fn = MultiResolutionSTFTLoss(
+        FFT_sizes=net_config["fft_sizes"],
+        hop_sizes=net_config["hop_sizes"],
+        win_lengths=net_config["win_lengths"],
+        mag_loss_weight=net_config["mag_loss_weight"],
+        eps=net_config.get("eps", 1e-7)
+    ).to(device)
+    
+    # 5. Resume logic
+    start_epoch = 0
+    checkpoint_to_load = args.resume
+    
+    # Auto-resume from latest.pth if no path provided
+    if checkpoint_to_load is None:
+        auto_latest = os.path.join(args.checkpoint_dir, "latest.pth")
+        if os.path.exists(auto_latest) and not args.no_resume:
+            checkpoint_to_load = auto_latest
+            print(f"Auto-resuming from latest checkpoint: {checkpoint_to_load}")
+
+    if not args.no_resume and checkpoint_to_load and os.path.exists(checkpoint_to_load):
+        print(f"Loading checkpoint: {checkpoint_to_load}")
+        checkpoint = torch.load(checkpoint_to_load, map_location=device)
+        
+        state_dict = checkpoint['model_state_dict'] if 'model_state_dict' in checkpoint else checkpoint
+        
+        try:
+            model.load_state_dict(state_dict)
+            if 'optimizer_state_dict' in checkpoint and 'model_state_dict' in checkpoint:
+                optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+                
+                # Check if we should override the LR from config (if it's different from checkpoint)
+                # or from command line argument
+                new_lr = args.lr if args.lr is not None else net_config.get("learning_rate", 1e-4)
+                for param_group in optimizer.param_groups:
+                    if param_group['lr'] != new_lr:
+                        print(f"Updating Learning Rate from {param_group['lr']} to {new_lr}")
+                        param_group['lr'] = new_lr
+            
+            start_epoch = checkpoint.get('epoch', 0) if isinstance(checkpoint, dict) else 0
+            print(f"Success! Resuming from epoch {start_epoch}")
+        except RuntimeError as e:
+            print(f"Warning: Could not load checkpoint from {checkpoint_to_load} due to architecture mismatch.")
+            print("Starting training from scratch for the new model configuration.")
+            # We don't exit, we just continue with fresh weights
+    
+    # 6. Training Loop
+    os.makedirs(args.checkpoint_dir, exist_ok=True)
+    
+    try:
+        for epoch in range(start_epoch, args.epochs):
+            model.train()
+            epoch_loss = 0
+            
+            pbar = tqdm(dataloader, desc=f"Epoch {epoch+1}/{args.epochs}")
+            for batch_idx, batch in enumerate(pbar):
+                f0 = batch['f0'].to(device)
+                loudness = batch['loudness'].to(device)
+                target_audio = batch['audio'].to(device)
+                
+                # Forward
+                pred_audio = model(f0, loudness)
+                
+                # Check for NaNs
+                if torch.isnan(pred_audio).any() or torch.isinf(pred_audio).any():
+                    print(f"!!! NaN/Inf detected in prediction at Batch {batch_idx}")
+                    raise RuntimeError("Weight collapse detected: Prediction contains NaN/Inf")
+                
+                # Loss
+                loss, sc_loss, log_loss = loss_fn(pred_audio, target_audio)
+                
+                # Backward
+                optimizer.zero_grad()
+                loss.backward()
+                
+                # Stability: Gradient Clipping for deep GRUs
+                torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
+                
+                optimizer.step()
+                
+                epoch_loss += loss.item()
+                
+                # Log to W&B
+                if batch_idx % 10 == 0:
+                    wandb.log({
+                        "train_loss": loss.item(),
+                        "sc_loss": sc_loss.item(),
+                        "log_loss": log_loss.item()
+                    })
+                
+                pbar.set_postfix({"loss": loss.item()})
+                
+            avg_loss = epoch_loss / len(dataloader)
+            print(f"Epoch {epoch+1} Complete. Avg Loss: {avg_loss:.4f}")
+            
+            # Save Checkpoint
+            checkpoint_data = {
+                'epoch': epoch + 1,
+                'model_state_dict': model.state_dict(),
+                'optimizer_state_dict': optimizer.state_dict(),
+                'loss': avg_loss,
+            }
+            
+            checkpoint_path = os.path.join(args.checkpoint_dir, f"model_epoch_{epoch+1}.pth")
+            latest_path = os.path.join(args.checkpoint_dir, "latest.pth")
+            
+            torch.save(checkpoint_data, checkpoint_path)
+            torch.save(checkpoint_data, latest_path) # Always keep a latest.pth for easy resume
+            
+            # Rolling Checkpoint Deletion: Keep only the last 2 epoch-specific files
+            # Example: If we just saved epoch 10, delete epoch 8.
+            old_checkpoint_to_delete = os.path.join(args.checkpoint_dir, f"model_epoch_{epoch-1}.pth")
+            if epoch - 1 > 0 and os.path.exists(old_checkpoint_to_delete):
+                try:
+                    os.remove(old_checkpoint_to_delete)
+                    # print(f"--- Deleted old checkpoint: {old_checkpoint_to_delete} ---")
+                except Exception as e:
+                    print(f"Warning: Could not delete old checkpoint {old_checkpoint_to_delete}: {e}")
+            
+            # Log Audio Sample periodically
+            if (epoch + 1) % args.log_audio_every == 0:
+                # Normalize for W&B listening
+                audio_to_log = pred_audio[0].detach().cpu().numpy()
+                audio_to_log = audio_to_log / (np.max(np.abs(audio_to_log)) + 1e-7)
+                
+                wandb.log({
+                    "source_f0": wandb.Histogram(f0.cpu().numpy()),
+                    "pred_audio": wandb.Audio(audio_to_log, sample_rate=16000),
+                    "target_audio": wandb.Audio(target_audio[0].cpu().numpy(), sample_rate=16000)
+                })
+                
+    except KeyboardInterrupt:
+        print("\nTraining interrupted by user. Saving state...")
+    finally:
+        wandb.finish()
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--data_dir', type=str, required=True, help='Preprocessed .pt files')
+    parser.add_argument('--checkpoint_dir', type=str, default='checkpoints')
+    parser.add_argument('--resume', type=str, default=None, help='Path to checkpoint to resume from')
+    parser.add_argument('--epochs', type=int, default=100)
+    parser.add_argument('--batch_size', type=int, default=16)
+    parser.add_argument('--lr', type=float, default=None, help='Override learning rate (default from config)')
+    parser.add_argument('--seq_len', type=int, default=16000)
+    parser.add_argument('--config_file', type=str, default='config.json')
+    parser.add_argument('--config_name', type=str, default='tiny')
+    parser.add_argument('--log_audio_every', type=int, default=5)
+    parser.add_argument('--no_resume', action='store_true', help='Force start from scratch')
+    parser.add_argument('--hf_repo_id', type=str, default=None, help='Hugging Face repo ID to pull data from')
+    
+    args = parser.parse_args()
+    train(args)

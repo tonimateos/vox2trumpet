@@ -1,0 +1,15 @@
+torch>=2.0.0
+torchaudio>=2.0.0
+librosa>=0.10.0
+torchcrepe>=0.0.20
+scipy>=1.10.0
+numpy<2.0.0
+matplotlib>=3.7.0
+tqdm>=4.65.0
+wandb>=0.15.0
+gradio==3.50.2
+pydantic<2.0.0
+fastapi<0.110.0
+huggingface-hub>=0.20.0
+datasets>=2.15.0
+accelerate>=0.25.0

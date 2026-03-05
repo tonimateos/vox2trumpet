@@ -1,0 +1,284 @@
+import gradio as gr
+import torch
+import os
+import numpy as np
+import librosa
+import matplotlib.pyplot as plt
+from datetime import datetime
+from scipy.io import wavfile
+from model import NeuralGuitar
+from preprocess import extract_features
+
+import json
+
+from core import NeuralGuitarCore
+
+# --- Initialize Core ---
+# We point to standard locations for checkpoints and config
+core = NeuralGuitarCore(
+    checkpoint_path="checkpoints/latest.pth",
+    config_path="config.json",
+    config_name="deep"
+)
+# Re-expose these for the UI plotting
+SAMPLE_RATE = core.config["sample_rate"]
+HOP_LENGTH = core.config["hop_length"]
+
+def generate_plots(audio, f0, loudness):
+    """Generates a clean visualization of Waveform, Pitch and Loudness."""
+    audio = audio.squeeze().cpu().numpy()
+    f0 = f0.squeeze().cpu().numpy()
+    loudness = loudness.squeeze().cpu().numpy()
+    
+    # Time axes
+    time_audio = np.arange(len(audio)) / SAMPLE_RATE
+    # 100Hz frame rate (160 hop at 16k sr)
+    time_frames = np.arange(len(f0)) * (HOP_LENGTH / SAMPLE_RATE)
+    
+    fig, (ax0, ax1, ax2) = plt.subplots(3, 1, figsize=(10, 8), sharex=True)
+    plt.subplots_adjust(hspace=0.4)
+    
+    # Dark mode/Modern aesthetic
+    plt.style.use('dark_background')
+    fig.patch.set_facecolor('#0b0f19')
+    ax0.set_facecolor('#0b0f19')
+    ax1.set_facecolor('#0b0f19')
+    ax2.set_facecolor('#0b0f19')
+    
+    # 0. Waveform
+    ax0.plot(time_audio, audio, color='#94a3b8', alpha=0.7, linewidth=1)
+    ax0.set_title("Input Waveform", color='white', pad=10)
+    ax0.set_ylabel("Amplitude", color='#9ca3af')
+    ax0.grid(True, which='both', ls='--', alpha=0.1)
+    ax0.tick_params(colors='#9ca3af')
+
+    # 1. Pitch
+    f0_masked = f0.copy()
+    f0_masked[f0_masked <= 20] = np.nan # Hide noise/silence
+    ax1.plot(time_frames, f0_masked, color='#3b82f6', linewidth=2, label='Pitch (Hz)')
+    ax1.set_yscale('log')
+    ax1.set_title("Pitch Trajectory (F0)", color='white', pad=10)
+    ax1.set_ylabel("Frequency (Hz)", color='#9ca3af')
+    ax1.grid(True, which='both', ls='--', alpha=0.1)
+    ax1.tick_params(colors='#9ca3af')
+    
+    # 2. Loudness
+    ax2.plot(time_frames, loudness, color='#ef4444', linewidth=2, label='Loudness')
+    ax2.set_title("Loudness Envelope", color='white', pad=10)
+    ax2.set_ylabel("Magnitude", color='#9ca3af')
+    ax2.set_xlabel("Time (seconds)", color='#9ca3af')
+    ax2.grid(True, which='both', ls='--', alpha=0.1)
+    ax2.tick_params(colors='#9ca3af')
+    
+    plt.tight_layout()
+    
+    # Save to buffer
+    plot_path = "output/feature_viz.png"
+    os.makedirs("output", exist_ok=True)
+    plt.savefig(plot_path, dpi=120, bbox_inches='tight', facecolor='#0b0f19')
+    plt.close()
+    return plot_path
+
+def process_audio(input_path):
+    if input_path is None:
+        return None
+    
+    # Use the shared core for processing
+    audio_orig, audio_resynth, f0, loudness = core.process_audio(input_path)
+    
+    # Core returns numpy/torch objects, now we handle UI-specific tasks:
+    # 1. Visualization
+    # Convert f0 and loudness back to torch for the plot function (it expects .cpu().numpy() calls)
+    plot_path = generate_plots(torch.from_numpy(audio_orig), f0, loudness)
+    
+    # 2. Save result for Gradio
+    os.makedirs("output", exist_ok=True)
+    out_path = "output/web_resynth.wav"
+    wavfile.write(out_path, SAMPLE_RATE, audio_resynth)
+    
+    return out_path, plot_path
+
+import subprocess
+import threading
+import sys
+
+# --- Training Logic ---
+training_process = None
+training_logs = ""
+
+def run_training(config_name, epochs, batch_size, hf_repo_id, training_password, resume_training):
+    global training_process, training_logs
+    
+    # ... (password logic remains same) ...
+    correct_password = os.environ.get("TRAINING_PASSWORD")
+    if correct_password and training_password != correct_password:
+        return "❌ Error: Invalid Training Password."
+    elif not correct_password and training_password:
+         return "❌ Error: TRAINING_PASSWORD secret not set on server."
+
+    if training_process and training_process.poll() is None:
+        return "Training is already running!"
+    
+    training_logs = "Starting training...\n"
+    
+    cmd = [
+        sys.executable, "train.py",
+        "--config_name", config_name,
+        "--epochs", str(epochs),
+        "--batch_size", str(batch_size)
+    ]
+
+    if not resume_training:
+        cmd.append("--no_resume")
+    
+    if hf_repo_id:
+        hf_repo_id = hf_repo_id.strip()
+        cmd.extend(["--hf_repo_id", hf_repo_id, "--data_dir", "./data"])
+    
+    try:
+        # Use stdbuf or similar if needed for real-time logs, 
+        # but basic subprocess should work with bufsize=1
+        training_process = subprocess.Popen(
+            cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            bufsize=1,
+            env=os.environ.copy()
+        )
+        
+        def monitor():
+            global training_logs
+            for line in iter(training_process.stdout.readline, ""):
+                training_logs += line
+            training_process.stdout.close()
+            training_process.wait()
+            training_logs += "\n--- Training Finished ---"
+
+        threading.Thread(target=monitor, daemon=True).start()
+        return "Process started. Check logs below."
+    except Exception as e:
+        return f"Error starting training: {e}"
+
+def get_logs():
+    return training_logs
+
+def get_latest_checkpoint():
+    """Returns the path to the latest checkpoint and its modification date."""
+    path = "checkpoints/latest.pth"
+    if os.path.exists(path):
+        mtime = os.path.getmtime(path)
+        date_str = datetime.fromtimestamp(mtime).strftime('%Y-%m-%d %H:%M:%S')
+        return path, f"**Last Updated:** {date_str}"
+    return None, "**Status:** No checkpoint found."
+
+def stop_training_proc():
+    global training_process
+    if training_process and training_process.poll() is None:
+        training_process.terminate()
+        return "Training stopped."
+    return "No training process running."
+
+# --- Gradio UI ---
+with gr.Blocks(theme=gr.themes.Soft(primary_hue="blue", neutral_hue="slate")) as demo:
+    gr.HTML("<h1 style='text-align: center;'>🎸 Neural Guitar: DDSP Timbre Transfer</h1>")
+    
+    with gr.Tabs():
+        with gr.Tab("Synthesizer"):
+            gr.Markdown("""
+            Convert any monophonic audio (whistling, humming, singing) into a realistic electric guitar sound!
+            """)
+            
+            with gr.Row():
+                with gr.Column():
+                    with gr.Tabs():
+                        with gr.TabItem("🎤 Record"):
+                            audio_mic = gr.Audio(source="microphone", type="filepath", label="Record your melody")
+                            btn_mic = gr.Button("Generate Guitar from Recording", variant="primary")
+                        with gr.TabItem("📁 Upload"):
+                            audio_file = gr.Audio(source="upload", type="filepath", label="Upload a .wav file")
+                            btn_file = gr.Button("Generate Guitar from File", variant="primary")
+                
+                with gr.Column():
+                    output_audio = gr.Audio(label="Guitar Resynthesis")
+                    output_viz = gr.Image(label="Feature Visualization (Waveform, Pitch & Loudness)")
+                    gr.Markdown("### Instructions")
+                    gr.Markdown("""
+                    1. Use one of the tabs on the left.
+                    2. Click the corresponding 'Generate' button.
+                    3. The AI will process the pitch and loudness to resynthesize it as a guitar.
+                    """)
+
+        with gr.Tab("Training 🚀"):
+            gr.Markdown("""
+            ## Cloud Training Interface
+            Use this tab to train a new model on a Hugging Face GPU. 
+            *Ensure you have set `WANDB_API_KEY` and `HF_TOKEN` in your Space's Secrets.*
+            """)
+            
+            with gr.Row():
+                with gr.Column():
+                    config_name = gr.Dropdown(
+                        choices=["tiny", "standard", "deep", "extra_deep", "tiny_no_noise", "deep_no_noise", "extra_deep_no_noise"],
+                        value="extra_deep",
+                        label="Model Configuration"
+                    )
+                    epochs = gr.Slider(minimum=1, maximum=200, value=50, step=1, label="Epochs")
+                    batch_size = gr.Slider(minimum=4, maximum=64, value=16, step=4, label="Batch Size")
+                    repo_id = gr.Textbox(
+                        placeholder="username/repo-name",
+                        label="HF Dataset Repo ID (Optional)",
+                        info="If blank, uses local data."
+                    )
+                    training_password = gr.Textbox(
+                        label="Training Password",
+                        placeholder="Enter secret to start training",
+                        type="password"
+                    )
+                    resume_training = gr.Checkbox(
+                        label="Resume Training",
+                        value=True,
+                        info="Check to resume from the last saved checkpoint."
+                    )
+                    
+                    with gr.Row():
+                        btn_train = gr.Button("Start Training", variant="primary")
+                        btn_stop = gr.Button("Stop Training", variant="stop")
+                
+                with gr.Column():
+                    status_out = gr.Textbox(label="Status")
+                    log_viewer = gr.Textbox(label="Training Logs", lines=15, max_lines=25, interactive=False)
+                    # Poll logs every 2 seconds
+                    demo.load(fn=get_logs, inputs=None, outputs=log_viewer, every=2)
+
+    btn_mic.click(fn=process_audio, inputs=audio_mic, outputs=[output_audio, output_viz])
+    btn_file.click(fn=process_audio, inputs=audio_file, outputs=[output_audio, output_viz])
+    
+    btn_train.click(
+        fn=run_training, 
+        inputs=[config_name, epochs, batch_size, repo_id, training_password, resume_training], 
+        outputs=status_out
+    )
+    btn_stop.click(fn=stop_training_proc, outputs=status_out)
+
+    # --- Checkpoint Download ---
+    with gr.Column():
+        gr.Markdown("### 📥 Checkpoint Retrieval")
+        checkpoint_file = gr.File(label="Latest Checkpoint (.pth)")
+        checkpoint_info = gr.Markdown("**Status:** Click refresh to check for updates.")
+        btn_refresh = gr.Button("Refresh Download Link", variant="secondary")
+        btn_refresh.click(fn=get_latest_checkpoint, inputs=None, outputs=[checkpoint_file, checkpoint_info])
+
+if __name__ == "__main__":
+    print("--- Attempting to start Gradio 3.50.2 Server ---")
+    try:
+        demo.queue() # Enable queue for polling/generators
+        demo.launch(
+            share=True,
+            show_error=True
+        )
+    except KeyboardInterrupt:
+        print("\n--- Stopping Server... ---")
+    finally:
+        demo.close()
+        print("--- Server stopped and tunnels closed. ---")

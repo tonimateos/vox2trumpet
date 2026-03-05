@@ -1,0 +1,26 @@
+# Python
+__pycache__/
+*.py[cod]
+
+# Virtual Environment (Local Dependencies)
+venv/
+.venv/
+
+# IDE
+.vscode/
+.idea/
+
+# Checkpoints & Data
+*.pt
+*.wav
+.plan*
+checkpoints/
+data/
+wandb/
+output/
+.env*
+
+# But DO track reference wavs
+!tests/reference_input.wav
+!tests/golden_output.wav
+!checkpoints/latest.pth

@@ -1,0 +1,213 @@
+---
+title: Neural Guitar DDSP
+emoji: 🎸
+colorFrom: blue
+colorTo: indigo
+sdk: gradio
+sdk_version: 3.50.2
+app_file: app.py
+pinned: false
+---
+
+# Neural Guitar: DDSP Timbre Transfer
+
+### 🧠 System Architecture
+
+```text
+    INPUTS (Log)           DECODER (Brain)                PARAMETERS
+    [Batch, Time, 2]      [Batch, Time, 512]           [Batch, Time, 166]
+   
+    ┌──────────┐          ┌───────────────────┐        ┌───────────────────┐
+    │  log_f0  │──┐       │   GRU (1 Layer)   │        │   MLP (Linear)    │
+    └──────────┘  │       │   Hidden: 512     │        │  166 Neurons Out  │
+                  ├───▶───┤                   ├───▶───┤                   │──┐
+    ┌──────────┐  │       │   BatchFirst=True │        │  (Softmax/Sigmoid)│  │
+    │ loudness │──┘       └───────────────────┘        └───────────────────┘  │
+    └──────────┘                                                              │
+                                                                              ▼
+          ┌───────────────────────────────────────────────────────────────────┘
+          │
+          │             SYNTHESIZERS (Body)               AUDIO OUTPUT
+          │           [Physics-Informed DSP]             [Batch, Sample]
+          │
+          │     (Amps)  ┌───────────────────────┐
+          ├──────────▶──│ Harmonic Oscillator   │──┐
+          │             └───────────────────────┘  │      ┌───────────┐
+          │                                        ├──▶───│   SUM     │──▶ [ 🎸 ]
+          │     (Mags)  ┌───────────────────────┐  │      └───────────┘
+          └──────────▶──│ Noise Filter Bank     │──┘
+                        └───────────────────────┘
+```
+
+**Model Details:**
+- **Decoder**: Single-layer GRU (Gated Recurrent Unit) to capture temporal dependencies (slurs, vibrato, and decay).
+- **Hidden Size**: 512 units.
+- **Parameters**: 166 total (101 harmonic amplitudes + 65 noise band magnitudes).
+- **Inductive Bias**: The model predicts control signals rather than raw samples, ensuring stable pitch.
+
+## 🚀 Quick Start
+
+This project uses a **local, isolated environment** to guarantee reproducibility. All dependencies are installed into the `./venv` directory within the project root.
+
+### 1. Setup Environment
+We provide a script to set up a Python 3.9 virtual environment and install exact dependencies.
+
+```bash
+# Run the setup script (creates ./venv and installs packages)
+chmod +x setup_env.sh
+./setup_env.sh
+```
+
+**Where are the dependencies?**
+They are downloaded and installed locally in `venv/lib/python3.9/site-packages`. They do **not** affect your global system Python.
+
+### 2. Verify Installation
+Run the verification script to check that the Neural Guitar model and DSP components can be instantiated correctly.
+
+```bash
+# Verify the build
+./venv/bin/python verify_project.py
+```
+
+## 🛠️ Data & Training Pipeline
+
+### 1. Download Dataset (GuitarSet)
+We use the **GuitarSet** dataset for training. Use our script to automate the download and extraction of the monophonic mic recordings.
+
+```bash
+./venv/bin/python download_data.py
+```
+
+### 2. Preprocessing
+Extract high-precision pitch ($f_0$) via **CREPE** and A-weighted loudness. Our script includes a **Resume Capability**—if interrupted, it will skip already processed files.
+
+```bash
+./venv/bin/python preprocess.py --input_dir data/raw/guitarset --output_dir data/processed/guitarset
+```
+
+### 3. Quality Control (Visualization)
+Before training, verify the extracted features. This tool saves a diagnostic plot to `data/visualization/`.
+
+```bash
+./venv/bin/python visualize_features.py --file data/processed/guitarset/00_SS3-84-Bb_comp_mic.pt
+```
+
+### 4. Training with Weights & Biases (W&B)
+We use **W&B** for experiment tracking. It allows you to monitor loss and listen to audio samples in real-time.
+
+1.  **Login**: ` ./venv/bin/python -m wandb login` (Paste your API key from [wandb.ai](https://wandb.ai/)).
+2.  **Train**:
+    ```bash
+    ./venv/bin/python train.py --data_dir data/processed/guitarset --batch_size 16 --epochs 100
+    ```
+
+### 5. Cloud Training (Hugging Face)
+For faster training on cloud GPUs (A10G/T4), you can stream your data from the Hugging Face Hub.
+
+1.  **Set Token**: Create a [Hugging Face Write Token](https://huggingface.co/settings/tokens) and export it:
+    ```bash
+    export HF_TOKEN=your_token_here
+    ```
+2.  **Upload Data**: Run the upload script to create a private dataset:
+    ```bash
+    ./venv/bin/python scripts/upload_to_hf.py --repo_id username/vox2guit-data
+    ```
+3.  **Train Remote**:
+    ```bash
+    ./venv/bin/python train.py --config_name deep_no_noise --hf_repo_id username/vox2guit-data
+    ```
+
+### 🧬 Data Pipeline: Batches & Epochs
+
+To understand the training dynamics, here is how the data is handled under the hood:
+
+- **The Dataset**: We use 360 preprocessed `.pt` files from GuitarSet. Each file contains a full recording.
+- **Random Cropping**: Every time the model accesses a file, it picks a **random 1-second segment** (16,000 samples). This ensures that the model sees different parts of the performances in every epoch, significantly increasing data diversity.
+- **Batches**: With a **Batch Size of 16**, the model processes 16 different 1-second segments simultaneously on your GPU. One epoch consists of approximately **23 batches** ($360 \div 16$).
+- **Epochs**: One epoch means the model has "visited" every one of the 360 files exactly once. Because of the random crop, training for 100 epochs means the model effectively hears **36,000 unique snippets** of guitar playing.
+
+## 📈 Monitoring & Debugging
+
+Training a neural synthesizer is an iterative process. Here is how to keep an eye on your model's progress:
+
+### 1. Weights & Biases (Remote)
+Once training starts, W&B provides a real-time dashboard at the URL printed in your terminal.
+- **Loss Curves**: Monitor `train_loss`. A steady decrease indicates the model is learning the spectral features.
+- **Audio Samples**: Every 5 epochs, the model uploads an audio reconstruction. Listen to these to hear the timbre evolve from noise to guitar. Specifically, the model extracts the pitch and loudness "DNA" from the target audio and passes it through the neural network to see how well the synthesizer can mimic the original.
+- **Run Management**: Each execution gets a random name (e.g., `solar-wave-10`). You can delete failed/interrupted runs from the W&B project settings to keep your dashboard clean.
+
+### 2. Local Monitoring
+- **Progress Bar (`tqdm`)**: Shows instantaneous loss and processing speed (iterations per second) in your terminal.
+- **Checkpoints**: High-fidelity model states are saved to `checkpoints/model_epoch_N.pth`.
+- **Graceful Exit**: Hit `CTRL+C` at any time to stop training. The script will safely close the W&B connection and save the current state.
+
+### 3. Auto-Resume
+You don't need to do anything special to resume. If you stop the script and run the training command again, it will:
+1. Detect `checkpoints/latest.pth`.
+2. Automatically load the latest weights and optimizer state.
+3. **New**: It will automatically detect if you have updated the `learning_rate` or `mag_loss_weight` in `config.json` and apply the new values to the resumed optimizer.
+4. Continue training from the exact epoch where it was interrupted.
+
+---
+
+## 🧠 Architecture
+
+The model follows the **Control-Synthesis** paradigm, separating the "Brain" (Neural Network) from the "Body" (DSP Synthesizer).
+
+- **Encoder**: Extracts pitch ($f_0$) using a pre-trained **CREPE** model and A-weighted Loudness.
+- **Decoder**: A **GRU** (Gated Recurrent Unit) maps these control signals to synthesizer parameters.
+    - **Why GRU?**: We chose a GRU over a Transformer because it is significantly more efficient for real-time audio synthesis. GRUs have a strong "inductive bias" for sequences where the next frame depends heavily on the previous one (temporal persistence).
+    - **Future-Proofing**: While the GRU is our "lean and mean" baseline, the modular design allows us to swap in a **Transformer-based decoder** if we need to model more complex, long-range musical dependencies in the future.
+- **Synthesizer**:
+    - **Harmonic Synthesizer**: Additive synthesis (sum of sines) for the tonal string vibration.
+    - **Filtered Noise**: Subtractive synthesis (time-varying FIR filters) for pick attack and rasp.
+- **Loss**: **Multi-Resolution STFT Loss** (in `loss.py`) ensures the model learns spectral details across time and frequency.
+
+### Further Reading on GRUs
+- **[Original Paper]**: [Learning Phrase Representations using RNN Encoder–Decoder for Statistical Machine Translation](https://arxiv.org/abs/1406.1078) (Cho et al., 2014)
+- **[Visual Guide]**: [Gated Recurrent Units (GRU) - Dive into Deep Learning](https://d2l.ai/chapter_recurrent-modern/gru.html) — An excellent, interactive textbook guide with clear diagrams and math.
+
+---
+
+## Mathematical Loss Function: Multi-Resolution STFT
+
+The "Neural Guitar" uses a **Multi-Resolution Short-Time Fourier Transform (MR-STFT) Loss** to train the GRU decoder. Unlike a simple time-domain MSE, this loss evaluates the model across multiple time-frequency scales to capture both sharp transients (plucks) and sustained harmonic timbre.
+
+### 1. Single-Resolution STFT Loss
+For each resolution $i$ (defined by FFT size $N_i$, hop size $H_i$, and window $W_i$), the loss $L_s^{(i)}$ is a combination of two components:
+
+#### Spectral Convergence ($L_{sc}$)
+This measures the overall "energy shape" of the spectrogram. It is defined as the Frobenius norm of the difference between the target and predicted magnitudes, normalized by the target's norm:
+
+$$L_{sc}(x, y) = \frac{|| \ |STFT(y)| - |STFT(x)| \ ||_F}{|| \ |STFT(y)| \ ||_F + \epsilon}$$
+
+#### Log-Magnitude Loss ($L_{mag}$)
+To better match human auditory perception (which is logarithmic), we calculate the $L1$ distance between the log-spectrograms. We use a weighting factor $w$ (configured in `config.json`) to prioritize tonal warmth:
+
+$$L_{mag}(x, y) = w \cdot \frac{1}{T \cdot F} \sum_{t,f} | \log(|STFT(y)_{t,f}| + \epsilon) - \log(|STFT(x)_{t,f}| + \epsilon) |$$
+
+### 2. Multi-Resolution Aggregation
+To prevent the model from over-fitting to a single window size, we average the loss across a bank of resolutions (e.g., 512, 1024, 2048, and 4096):
+
+$$L_{total} = \frac{1}{M} \sum_{i=1}^{M} (L_{sc}^{(i)} + L_{mag}^{(i)})$$
+
+Using a high resolution like **4096** is crucial for capturing the distinct, tight harmonics of low guitar strings, while the **512** resolution ensures the "pop" of the initial pick attack is preserved.
+
+---
+
+## 📂 File Structure
+
+- `model.py`: Main `NeuralGuitar` nn.Module.
+- `synth.py`: Differentiable DSP modules (`HarmonicSynthesizer`, `FilteredNoiseSynthesizer`).
+- `loss.py`: Perceptual loss functions.
+- `preprocess.py`: Data pipeline for extracting $(f_0, Loudness)$ features (stable SOS filtering).
+- `visualize_features.py`: Diagnostic tool for feature inspection.
+- `train.py`: Training loop with W&B integration and checkpoint resume.
+- `data.py`: `NeuralGuitarDataset` with random cropping.
+- `download_data.py`: Automated GuitarSet downloader.
+- `setup_env.sh`: Environment reproducibility script.
+- `test_e2e.py`: Deterministic regression test suite.
+- `tests/`: Directory for reference audio assets (Tracked via LFS).
+- `config.json`: Centralized configuration for model architectures and hyperparameters.
+- `scripts/upload_to_hf.py`: Utility for migrating training data to the cloud.
+- `scripts/check_dataset_nans.py`: Integrity verification tool for processed features.

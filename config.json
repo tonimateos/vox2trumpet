@@ -1,0 +1,220 @@
+{
+    "tiny": {
+        "description": "Baseline small model for real-time performance",
+        "hidden_size": 512,
+        "n_harmonics": 101,
+        "n_noise_bands": 65,
+        "num_layers": 1,
+        "dropout": 0.0,
+        "use_noise": true,
+        "sample_rate": 16000,
+        "hop_length": 160,
+        "learning_rate": 0.0001,
+        "fft_sizes": [
+            512,
+            1024,
+            2048
+        ],
+        "hop_sizes": [
+            120,
+            240,
+            480
+        ],
+        "win_lengths": [
+            240,
+            600,
+            1200
+        ],
+        "mag_loss_weight": 1.0,
+        "eps": 1e-07
+    },
+    "standard": {
+        "description": "Higher capacity model for better timbre quality",
+        "hidden_size": 1024,
+        "n_harmonics": 101,
+        "n_noise_bands": 129,
+        "num_layers": 1,
+        "dropout": 0.0,
+        "use_noise": true,
+        "sample_rate": 16000,
+        "hop_length": 160,
+        "learning_rate": 0.0001,
+        "fft_sizes": [
+            512,
+            1024,
+            2048,
+            4096
+        ],
+        "hop_sizes": [
+            120,
+            240,
+            480,
+            960
+        ],
+        "win_lengths": [
+            240,
+            600,
+            1200,
+            2400
+        ],
+        "mag_loss_weight": 1.0,
+        "eps": 1e-07
+    },
+    "deep": {
+        "description": "Deep multi-layer GRU for maximum organic texture",
+        "hidden_size": 1024,
+        "num_layers": 3,
+        "dropout": 0.1,
+        "use_noise": true,
+        "n_harmonics": 101,
+        "n_noise_bands": 129,
+        "sample_rate": 16000,
+        "hop_length": 160,
+        "learning_rate": 0.0001,
+        "fft_sizes": [
+            512,
+            1024,
+            2048,
+            4096
+        ],
+        "hop_sizes": [
+            120,
+            240,
+            480,
+            960
+        ],
+        "win_lengths": [
+            240,
+            600,
+            1200,
+            2400
+        ],
+        "mag_loss_weight": 1.0,
+        "eps": 1e-07
+    },
+    "tiny_no_noise": {
+        "description": "Harmonic-only model (no noise component)",
+        "hidden_size": 512,
+        "n_harmonics": 101,
+        "n_noise_bands": 65,
+        "num_layers": 1,
+        "dropout": 0.0,
+        "use_noise": false,
+        "sample_rate": 16000,
+        "hop_length": 160,
+        "learning_rate": 0.0001,
+        "fft_sizes": [
+            512,
+            1024,
+            2048
+        ],
+        "hop_sizes": [
+            120,
+            240,
+            480
+        ],
+        "win_lengths": [
+            240,
+            600,
+            1200
+        ],
+        "mag_loss_weight": 1.0,
+        "eps": 1e-07
+    },
+    "deep_no_noise": {
+        "description": "Deep multi-layer GRU (no noise component)",
+        "hidden_size": 1024,
+        "num_layers": 3,
+        "dropout": 0.1,
+        "use_noise": false,
+        "n_harmonics": 101,
+        "n_noise_bands": 129,
+        "sample_rate": 16000,
+        "hop_length": 160,
+        "learning_rate": 3e-05,
+        "fft_sizes": [
+            512,
+            1024,
+            2048,
+            4096
+        ],
+        "hop_sizes": [
+            120,
+            240,
+            480,
+            960
+        ],
+        "win_lengths": [
+            240,
+            600,
+            1200,
+            2400
+        ],
+        "mag_loss_weight": 1.0,
+        "eps": 1e-07
+    },
+    "extra_deep": {
+        "description": "Premium configuration with 1536 hidden units and 151 harmonics",
+        "hidden_size": 1536,
+        "num_layers": 3,
+        "dropout": 0.1,
+        "use_noise": true,
+        "n_harmonics": 151,
+        "n_noise_bands": 129,
+        "sample_rate": 16000,
+        "hop_length": 160,
+        "learning_rate": 0.0001,
+        "fft_sizes": [
+            512,
+            1024,
+            2048,
+            4096
+        ],
+        "hop_sizes": [
+            120,
+            240,
+            480,
+            960
+        ],
+        "win_lengths": [
+            240,
+            600,
+            1200,
+            2400
+        ],
+        "mag_loss_weight": 1.0,
+        "eps": 1e-07
+    },
+    "extra_deep_no_noise": {
+        "description": "Premium configuration (no noise) with 1536 hidden units and 151 harmonics",
+        "hidden_size": 1536,
+        "num_layers": 3,
+        "dropout": 0.1,
+        "use_noise": false,
+        "n_harmonics": 151,
+        "n_noise_bands": 129,
+        "sample_rate": 16000,
+        "hop_length": 160,
+        "learning_rate": 3e-05,
+        "fft_sizes": [
+            512,
+            1024,
+            2048,
+            4096
+        ],
+        "hop_sizes": [
+            120,
+            240,
+            480,
+            960
+        ],
+        "win_lengths": [
+            240,
+            600,
+            1200,
+            2400
+        ],
+        "mag_loss_weight": 1.0,
+        "eps": 1e-07
+    }
+}
