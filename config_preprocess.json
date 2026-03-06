@@ -10,5 +10,56 @@
     "a_weighting_high_cutoff": 7500,
     "a_weighting_filter_order": 6,
     "a_weighting_stopband_attenuation": 60,
-    "epsilon": 1e-07
+    "epsilon": 1e-07,
+    "instrument_ranges": {
+        "trumpet": {
+            "tag": "_tpt_",
+            "range": [
+                150,
+                1200
+            ]
+        },
+        "oboe": {
+            "tag": "_ob_",
+            "range": [
+                200,
+                2000
+            ]
+        },
+        "saxophone": {
+            "tag": "_sax_",
+            "range": [
+                100,
+                1000
+            ]
+        },
+        "bassoon": {
+            "tag": "_bn_",
+            "range": [
+                50,
+                800
+            ]
+        },
+        "trombone": {
+            "tag": "_tbn_",
+            "range": [
+                60,
+                800
+            ]
+        },
+        "horn": {
+            "tag": "_hn_",
+            "range": [
+                60,
+                800
+            ]
+        },
+        "tuba": {
+            "tag": "_tba_",
+            "range": [
+                30,
+                500
+            ]
+        }
+    }
 }

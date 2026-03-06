@@ -51,7 +51,7 @@ def a_weighting_filter(audio: torch.Tensor, sample_rate: int):
     filtered_audio = scipy.signal.sosfilt(sos, audio_np, axis=-1)
     return torch.from_numpy(filtered_audio.copy()).float()
 
-def extract_features(audio: torch.Tensor, sample_rate: int, hop_length: int = None, existing_f0: torch.Tensor = None):
+def extract_features(audio: torch.Tensor, sample_rate: int, hop_length: int = None, existing_f0: torch.Tensor = None, filename: str = ""):
     """
     Extract f0 and loudness from audio.
     """
@@ -70,11 +70,25 @@ def extract_features(audio: torch.Tensor, sample_rate: int, hop_length: int = No
         f0 = existing_f0
         confidence = torch.ones_like(f0).squeeze(-1) 
     else:
+        # --- Instrument-Specific Pitch Ranges ---
+        # Default ranges
+        fmin = PREPROCESS_CONFIG["pitch_min_freq"]
+        fmax = PREPROCESS_CONFIG["pitch_max_freq"]
+        
+        # URMP mapping (from filenames or paths)
+        instr_ranges = PREPROCESS_CONFIG.get("instrument_ranges", {})
+        
+        for name, info in instr_ranges.items():
+            tag = info["tag"]
+            if tag in filename.lower():
+                fmin, fmax = info["range"]
+                # print(f"    - Using range ({fmin}, {fmax}) for {name}")
+                break
+        
         # --- Signal Hardening for Pitch Tracker ---
-        # 1. DC Removal & High-pass (Remove subsonic rumble < 80Hz)
-        # Using a simple high-pass to focus CREPE on the guitar strings
+        # 1. DC Removal & High-pass (Remove subsonic rumble < 40Hz)
         audio_center = audio - torch.mean(audio)
-        sos_hp = scipy.signal.butter(4, 80, btype='highpass', fs=PREPROCESS_CONFIG["sample_rate"], output='sos')
+        sos_hp = scipy.signal.butter(4, 40, btype='highpass', fs=PREPROCESS_CONFIG["sample_rate"], output='sos')
         audio_hp = torch.from_numpy(scipy.signal.sosfilt(sos_hp, audio_center.numpy(), axis=-1).copy()).float()
         
         # 2. Peak Normalization
@@ -97,8 +111,8 @@ def extract_features(audio: torch.Tensor, sample_rate: int, hop_length: int = No
             audio_16k, 
             sample_rate=PREPROCESS_CONFIG["sample_rate"], 
             hop_length=hop_length, 
-            fmin=PREPROCESS_CONFIG["pitch_min_freq"], 
-            fmax=PREPROCESS_CONFIG["pitch_max_freq"], 
+            fmin=fmin, 
+            fmax=fmax, 
             model=PREPROCESS_CONFIG["crepe_model_size"], 
             batch_size=PREPROCESS_CONFIG["crepe_batch_size"], 
             device=device, 
@@ -118,9 +132,14 @@ def extract_features(audio: torch.Tensor, sample_rate: int, hop_length: int = No
 def preprocess_dataset(input_dir: str, output_dir: str, hop_length: int = None):
     hop_length = hop_length or PREPROCESS_CONFIG["hop_length"]
     os.makedirs(output_dir, exist_ok=True)
-    files = glob.glob(os.path.join(input_dir, '*.wav'))
     
-    print(f"Found {len(files)} wav files.")
+    # Use recursive glob to find all .wav files in subdirectories
+    files = glob.glob(os.path.join(input_dir, '**/*.wav'), recursive=True)
+    
+    # Filter out any files that might be in the output_dir if it's a subdirectory of input_dir
+    files = [f for f in files if os.path.abspath(output_dir) not in os.path.abspath(f)]
+    
+    print(f"Found {len(files)} wav files in {input_dir} (recursive).")
     
     # Detection of device (Adding MPS support for Mac)
     if torch.cuda.is_available():
@@ -157,11 +176,19 @@ def preprocess_dataset(input_dir: str, output_dir: str, hop_length: int = None):
                 diag_path = os.path.join(diag_dir, os.path.basename(fpath))
                 torchaudio.save(diag_path, audio, PREPROCESS_CONFIG["sample_rate"])
         try:
-            f0, loudness, confidence = extract_features(audio, PREPROCESS_CONFIG["sample_rate"], hop_length=hop_length, existing_f0=existing_f0)
-            
-            # Diagnostic: Log if we hit the pitch search ceiling (2000Hz default)
+            # Determine max_f0_allowed based on instrument
             max_f0_allowed = PREPROCESS_CONFIG["pitch_max_freq"]
-            ceiling_hits_mask = (f0 >= 0.8 * max_f0_allowed).squeeze(0).squeeze(-1) # [Frames]
+            instr_ranges = PREPROCESS_CONFIG.get("instrument_ranges", {})
+            for name, info in instr_ranges.items():
+                tag = info["tag"]
+                if tag in fpath.lower():
+                    max_f0_allowed = info["range"][1]
+                    break
+
+            f0, loudness, confidence = extract_features(audio, PREPROCESS_CONFIG["sample_rate"], hop_length=hop_length, existing_f0=existing_f0, filename=fpath)
+            
+            # Diagnostic: Log if we hit the pitch search ceiling
+            ceiling_hits_mask = (f0 >= 0.95 * max_f0_allowed).squeeze(0).squeeze(-1) # [Frames]
             ceiling_hits = ceiling_hits_mask.sum().item()
             if ceiling_hits > 0:
                 total_frames = f0.shape[1]
@@ -185,8 +212,8 @@ def preprocess_dataset(input_dir: str, output_dir: str, hop_length: int = None):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument('--input_dir', type=str, required=True, help='Directory of .wav files')
-    parser.add_argument('--output_dir', type=str, required=True, help='Directory to save .pt tensors')
+    parser.add_argument('--input_dir', type=str, default='data/raw/urmp', help='Directory of .wav files')
+    parser.add_argument('--output_dir', type=str, default='data/processed', help='Directory to save .pt tensors')
     parser.add_argument('--config_file', type=str, default='config.json')
     parser.add_argument('--config_name', type=str, default='tiny')
     args = parser.parse_args()
