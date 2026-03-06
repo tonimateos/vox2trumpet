@@ -26,15 +26,20 @@ class NeuralGuitarCore:
         self.model = NeuralGuitar(config=self.config).to(self.device)
         
         # 3. Load Checkpoint
+        self.checkpoint_loaded = False
         if os.path.exists(checkpoint_path):
             print(f"--- Loading checkpoint: {checkpoint_path} ---")
-            checkpoint = torch.load(checkpoint_path, map_location=self.device)
-            if 'model_state_dict' in checkpoint:
-                self.model.load_state_dict(checkpoint['model_state_dict'], strict=False)
-            else:
-                self.model.load_state_dict(checkpoint, strict=False)
-            self.model.eval()
-            print("--- Model loaded and ready! ---")
+            try:
+                checkpoint = torch.load(checkpoint_path, map_location=self.device)
+                if 'model_state_dict' in checkpoint:
+                    self.model.load_state_dict(checkpoint['model_state_dict'], strict=False)
+                else:
+                    self.model.load_state_dict(checkpoint, strict=False)
+                self.model.eval()
+                self.checkpoint_loaded = True
+                print("--- Model loaded and ready! ---")
+            except Exception as e:
+                print(f"Error loading checkpoint: {e}")
         else:
             print(f"Warning: No checkpoint found at {checkpoint_path}. Running with uninitialized weights.")
 

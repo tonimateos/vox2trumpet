@@ -83,6 +83,11 @@ def process_audio(input_path):
     if input_path is None:
         return None
     
+    if not core.checkpoint_loaded:
+        gr.Warning("⚠️ No trained model found! Please go to the 'Training 🚀' tab and start training first.")
+        # Return empty/placeholder results
+        return None, None
+    
     # Use the shared core for processing
     audio_orig, audio_resynth, f0, loudness = core.process_audio(input_path)
     
