@@ -11,6 +11,6 @@ gradio==3.50.2
 pillow==10.4.0
 pydantic==1.10.18
 fastapi==0.95.2
-huggingface-hub==0.17.3
-datasets>=2.15.0
+huggingface-hub==0.19.4
+datasets==2.15.0
 accelerate>=0.25.0
