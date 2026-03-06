@@ -8,8 +8,9 @@ matplotlib>=3.7.0
 tqdm>=4.65.0
 wandb>=0.15.0
 gradio==3.50.2
-pydantic<2.0.0
-fastapi<0.100.0
-huggingface-hub<0.18.0
+pillow==10.4.0
+pydantic==1.10.18
+fastapi==0.95.2
+huggingface-hub==0.17.3
 datasets>=2.15.0
 accelerate>=0.25.0
