@@ -193,10 +193,10 @@ with gr.Blocks(theme=gr.themes.Soft(primary_hue="blue", neutral_hue="slate")) as
                 with gr.Column():
                     with gr.Tabs():
                         with gr.TabItem("🎤 Record"):
-                            audio_mic = gr.Audio(source="microphone", type="filepath", label="Record your melody")
+                            audio_mic = gr.Audio(sources=["microphone"], type="filepath", label="Record your melody")
                             btn_mic = gr.Button("Generate Guitar from Recording", variant="primary")
                         with gr.TabItem("📁 Upload"):
-                            audio_file = gr.Audio(source="upload", type="filepath", label="Upload a .wav file")
+                            audio_file = gr.Audio(sources=["upload"], type="filepath", label="Upload a .wav file")
                             btn_file = gr.Button("Generate Guitar from File", variant="primary")
                 
                 with gr.Column():
@@ -274,7 +274,7 @@ if __name__ == "__main__":
     try:
         demo.queue() # Enable queue for polling/generators
         demo.launch(
-            share=True,
+            server_name="0.0.0.0",
             show_error=True
         )
     except KeyboardInterrupt:
