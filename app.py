@@ -274,7 +274,7 @@ if __name__ == "__main__":
     try:
         demo.queue() # Enable queue for polling/generators
         demo.launch(
-            share=True,
+            share=False,
             show_error=True
         )
     except KeyboardInterrupt:
