@@ -43,7 +43,7 @@ class NeuralGuitarCore:
         else:
             print(f"Warning: No checkpoint found at {checkpoint_path}. Running with uninitialized weights.")
 
-    def process_audio(self, input_path, instrument_tag=None):
+    def process_audio(self, input_path):
         """
         Full pipeline: Load -> Features -> Synthesis -> Normalization
         """
@@ -53,9 +53,7 @@ class NeuralGuitarCore:
         
         with torch.no_grad():
             # 2. Feature Extraction
-            # Pass instrument_tag (or fallback to input_path) to extract_features
-            tag_to_use = instrument_tag or input_path
-            f0, loudness, confidence = extract_features(audio_torch, self.config["sample_rate"], hop_length=self.config["hop_length"], filename=tag_to_use)
+            f0, loudness, confidence = extract_features(audio_torch, self.config["sample_rate"], hop_length=self.config["hop_length"])
             f0 = f0.to(self.device)
             loudness = loudness.to(self.device)
             

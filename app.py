@@ -18,7 +18,7 @@ from core import NeuralGuitarCore
 core = NeuralGuitarCore(
     checkpoint_path="checkpoints/latest.pth",
     config_path="config.json",
-    config_name="extra_deep"
+    config_name="deep"
 )
 # Re-expose these for the UI plotting
 SAMPLE_RATE = core.config["sample_rate"]
@@ -83,8 +83,8 @@ def process_audio(input_path):
     if input_path is None:
         return None
     
-    # Use the shared core for processing, specializing for trumpet pitch ranges
-    audio_orig, audio_resynth, f0, loudness = core.process_audio(input_path, instrument_tag="_tpt_")
+    # Use the shared core for processing
+    audio_orig, audio_resynth, f0, loudness = core.process_audio(input_path)
     
     # Core returns numpy/torch objects, now we handle UI-specific tasks:
     # 1. Visualization
