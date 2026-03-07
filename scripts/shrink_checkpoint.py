@@ -34,7 +34,7 @@ def shrink_checkpoint(input_path, output_path):
     print(f"--- Shrunk checkpoint saved to: {output_path} ---")
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Shrink Neural Guitar checkpoints for deployment.")
+    parser = argparse.ArgumentParser(description="Shrink Vox2Trumpet checkpoints for deployment.")
     parser.add_argument("--input", type=str, default="checkpoints/latest.pth", help="Path to full checkpoint")
     parser.add_argument("--output", type=str, default="checkpoints/latest_shrunk.pth", help="Path to save shrunk weights")
     

@@ -4,7 +4,7 @@ import torch.nn.functional as F
 from synth import HarmonicSynthesizer, FilteredNoiseSynthesizer
 
 # ==============================================================================
-# Research Note: Neural Guitar Architecture (Brain & Body)
+# Research Note: Vox2Trumpet Architecture (Brain & Body)
 # ==============================================================================
 # 1. The "Brain" (Decoder):
 #    - We use a GRU (Recurrent Neural Network) because audio generation 
@@ -20,7 +20,7 @@ from synth import HarmonicSynthesizer, FilteredNoiseSynthesizer
 #    - Noise Magnitudes: Sigmoid activation to bound filter response [0, 1].
 # ==============================================================================
 
-class NeuralGuitar(nn.Module):
+class Vox2Trumpet(nn.Module):
     def __init__(self, config: dict):
         super().__init__()
         
@@ -66,9 +66,9 @@ class NeuralGuitar(nn.Module):
         """
         # 1. Feature Preprocessing
         # Log-scale f0 helps the network linearize pitch space
-        # Guitar range is roughly 80Hz - 1000Hz. 
-        # log(130) is ~4.8. Let's center it.
-        log_f0 = (torch.log(f0 + 1e-7) - 4.8) / 2.0
+        # Trumpet range is roughly 150Hz - 1200Hz. 
+        # log(400) is ~6.0. Let's center it.
+        log_f0 = (torch.log(f0 + 1e-7) - 6.0) / 2.0
         
         decoder_input = torch.cat([log_f0, loudness], dim=-1) # [B, T, 2]
         

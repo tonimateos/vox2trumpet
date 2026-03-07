@@ -30,8 +30,8 @@ def check_file(fpath):
 
 if __name__ == "__main__":
     files = [
-        "data/raw/guitarset/05_Jazz3-150-C_comp_mic.wav",
-        "data/raw/guitarset/03_Funk1-97-C_solo_mic.wav"
+        "data/raw/urmp/trumpet_only/AuSep_1_tpt_42_Arioso.wav",
+        "data/raw/urmp/trumpet_only/AuSep_1_tpt_05_Entertainer.wav"
     ]
     for f in files:
         if os.path.exists(f):

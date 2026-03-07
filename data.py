@@ -3,9 +3,9 @@ import torch
 from torch.utils.data import Dataset
 import glob
 
-class NeuralGuitarDataset(Dataset):
+class Vox2TrumpetDataset(Dataset):
     """
-    Dataset for loading preprocessed Neural Guitar features (f0, loudness, audio).
+    Dataset for loading preprocessed Vox2Trumpet features (f0, loudness, audio).
     """
     def __init__(self, data_dir: str, sequence_length: int = 16000, repo_id: str = None):
         """

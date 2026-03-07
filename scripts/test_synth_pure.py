@@ -33,7 +33,7 @@ def test_pure_synthesis(output_dir="output/test_pure"):
         harm_amps[:, :, i] = 1.0 / (i + 1)
         
     # IMPORTANT: Normalize so that for any frame, the sum of amplitudes is 1.0
-    # This matches the Softmax behavior in our NeuralGuitar model and prevents clipping.
+    # This matches the Softmax behavior in our Vox2Trumpet model and prevents clipping.
     harm_amps = harm_amps / harm_amps.sum(dim=-1, keepdim=True)
         
     # Apply a global exponential decay envelope to the whole note

@@ -6,16 +6,16 @@ import librosa
 import matplotlib.pyplot as plt
 from datetime import datetime
 from scipy.io import wavfile
-from model import NeuralGuitar
+from model import Vox2Trumpet
 from preprocess import extract_features
 
 import json
 
-from core import NeuralGuitarCore
+from core import Vox2TrumpetCore
 
 # --- Initialize Core ---
 # We point to standard locations for checkpoints and config
-core = NeuralGuitarCore(
+core = Vox2TrumpetCore(
     checkpoint_path="checkpoints/latest.pth",
     config_path="config.json",
     config_name="extra_deep"
@@ -181,12 +181,12 @@ def stop_training_proc():
 
 # --- Gradio UI ---
 with gr.Blocks(theme=gr.themes.Soft(primary_hue="blue", neutral_hue="slate")) as demo:
-    gr.HTML("<h1 style='text-align: center;'>🎸 Neural Guitar: DDSP Timbre Transfer</h1>")
+    gr.HTML("<h1 style='text-align: center;'>🎺 Vox2Trumpet: DDSP Timbre Transfer</h1>")
     
     with gr.Tabs():
         with gr.Tab("Synthesizer"):
             gr.Markdown("""
-            Convert any monophonic audio (whistling, humming, singing) into a realistic electric guitar sound!
+            Convert any monophonic audio (whistling, humming, singing) into a realistic trumpet sound!
             """)
             
             with gr.Row():
@@ -194,19 +194,19 @@ with gr.Blocks(theme=gr.themes.Soft(primary_hue="blue", neutral_hue="slate")) as
                     with gr.Tabs():
                         with gr.TabItem("🎤 Record"):
                             audio_mic = gr.Audio(source="microphone", type="filepath", label="Record your melody")
-                            btn_mic = gr.Button("Generate Guitar from Recording", variant="primary")
+                            btn_mic = gr.Button("Generate Trumpet from Recording", variant="primary")
                         with gr.TabItem("📁 Upload"):
                             audio_file = gr.Audio(source="upload", type="filepath", label="Upload a .wav file")
-                            btn_file = gr.Button("Generate Guitar from File", variant="primary")
+                            btn_file = gr.Button("Generate Trumpet from File", variant="primary")
                 
                 with gr.Column():
-                    output_audio = gr.Audio(label="Guitar Resynthesis")
+                    output_audio = gr.Audio(label="Trumpet Resynthesis")
                     output_viz = gr.Image(label="Feature Visualization (Waveform, Pitch & Loudness)")
                     gr.Markdown("### Instructions")
                     gr.Markdown("""
                     1. Use one of the tabs on the left.
                     2. Click the corresponding 'Generate' button.
-                    3. The AI will process the pitch and loudness to resynthesize it as a guitar.
+                    3. The AI will process the pitch and loudness to resynthesize it as a trumpet.
                     """)
 
         with gr.Tab("Training 🚀"):

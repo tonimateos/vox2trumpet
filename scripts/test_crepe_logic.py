@@ -35,7 +35,7 @@ def test_crepe(fpath):
         print(f"[{model_size}] Avg Confidence: {avg_conf:.6f}")
 
 if __name__ == "__main__":
-    f = "data/raw/guitarset/03_Funk1-97-C_solo_mic.wav"
+    f = "data/raw/urmp/trumpet_only/AuSep_1_tpt_42_Arioso.wav"
     if os.path.exists(f):
         test_crepe(f)
     else:

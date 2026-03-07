@@ -10,11 +10,11 @@ import os
 # Allow running from scripts/ directory
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from core import NeuralGuitarCore
+from core import Vox2TrumpetCore
 
 def debug_harmonics(input_wav, checkpoint_path, config_path, config_name, output_dir):
     # 1. Initialize Core
-    core = NeuralGuitarCore(
+    core = Vox2TrumpetCore(
         checkpoint_path=checkpoint_path,
         config_path=config_path,
         config_name=config_name

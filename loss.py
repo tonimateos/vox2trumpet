@@ -11,7 +11,7 @@ from typing import List
 #    A single FFT size forces a trade-off: 
 #    - Large FFT = good frequency resolution (pitch), bad time resolution (transients/attacks).
 #    - Small FFT = good time resolution, bad frequency resolution.
-# 2. To capture the full fidelity of a "Neural Guitar" (which has sharp attacks AND sustained harmonics),
+# 2. To capture the full fidelity of "Vox2Trumpet" (which has sharp attacks AND sustained harmonics),
 #    we MUST evaluate the loss across a bank of FFT sizes simultaneously.
 # 3. We use the L1 distance on log-magnitudes to model the logarithmic nature of human hearing (Weber-Fechner law).
 # ==============================================================================

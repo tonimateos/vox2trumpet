@@ -28,7 +28,7 @@ def test_actual_function(fpath):
     print(f"Ceiling Hits: {ceiling_hits}/{f0.numel()}")
 
 if __name__ == "__main__":
-    f = "data/raw/guitarset/05_Jazz3-150-C_comp_mic.wav"
+    f = "data/raw/urmp/trumpet_only/AuSep_1_tpt_42_Arioso.wav"
     if os.path.exists(f):
         test_actual_function(f)
     else:

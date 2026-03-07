@@ -1,14 +1,14 @@
 import torch
 import numpy as np
 import scipy.io.wavfile as wavfile
-from core import NeuralGuitarCore
+from core import Vox2TrumpetCore
 import os
 
 def generate_perfect_test():
     print("--- Generating Perfect Feature Test (C4 -> C5) ---")
     
     # 1. Initialize Core
-    core = NeuralGuitarCore()
+    core = Vox2TrumpetCore()
     sr = core.config["sample_rate"]
     hop_length = core.config["hop_length"]
     

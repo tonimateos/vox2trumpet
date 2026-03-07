@@ -4,7 +4,7 @@ import numpy as np
 import librosa
 from scipy.io import wavfile
 import json
-from core import NeuralGuitarCore
+from core import Vox2TrumpetCore
 
 def run_test():
     print("--- Running End-to-End Regression Test ---")
@@ -19,7 +19,7 @@ def run_test():
         # but torch.manual_seed covers it.
         pass
 
-    core = NeuralGuitarCore(
+    core = Vox2TrumpetCore(
         checkpoint_path="checkpoints/latest.pth",
         config_path="config.json",
         config_name="deep"

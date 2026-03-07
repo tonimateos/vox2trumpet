@@ -41,7 +41,7 @@ def compare_models(fpath):
 
 if __name__ == "__main__":
     # Using one of the 100% failure files from the logs
-    f = "data/raw/guitarset/05_Jazz3-150-C_comp_mic.wav"
+    f = "data/raw/urmp/trumpet_only/AuSep_1_tpt_42_Arioso.wav"
     if os.path.exists(f):
         compare_models(f)
     else:

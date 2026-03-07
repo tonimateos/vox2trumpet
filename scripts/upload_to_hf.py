@@ -32,7 +32,7 @@ def upload_to_hf(repo_id, folder_path, path_in_repo="data"):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Upload preprocessed data to Hugging Face Hub")
-    parser.add_argument("--repo_id", type=str, required=True, help="Hugging Face repo ID (e.g., 'username/vox2guit-data')")
+    parser.add_argument("--repo_id", type=str, required=True, help="Hugging Face repo ID (e.g., 'username/vox2trumpet-data')")
     parser.add_argument("--folder", type=str, default="data/processed", help="Local folder to upload (default: data/processed)")
     parser.add_argument("--path_in_repo", type=str, default="data", help="Path inside the HF repo")
     

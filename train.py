@@ -8,8 +8,8 @@ import wandb
 import json
 import numpy as np
 
-from model import NeuralGuitar
-from data import NeuralGuitarDataset
+from model import Vox2Trumpet
+from data import Vox2TrumpetDataset
 from loss import MultiResolutionSTFTLoss
 
 def train(args):
@@ -21,8 +21,8 @@ def train(args):
         all_configs = json.load(f)
     net_config = all_configs[args.config_name]
     
-    # 1. Initialize W&B (Week 2 Alignment)
-    wandb.init(project="vox2guit", config=args)
+    # 1. Initialize W&B (Vox2Trumpet)
+    wandb.init(project="vox2trumpet", config=args)
     config = wandb.config
     
     if torch.cuda.is_available():
@@ -35,7 +35,7 @@ def train(args):
     
     # 2. Data
     hf_repo_id = args.hf_repo_id.strip() if args.hf_repo_id else None
-    dataset = NeuralGuitarDataset(
+    dataset = Vox2TrumpetDataset(
         args.data_dir, 
         sequence_length=args.seq_len, 
         repo_id=hf_repo_id
@@ -43,7 +43,7 @@ def train(args):
     dataloader = DataLoader(dataset, batch_size=args.batch_size, shuffle=True, num_workers=0)
     
     # 3. Model
-    model = NeuralGuitar(config=net_config).to(device)
+    model = Vox2Trumpet(config=net_config).to(device)
     
     # 4. Optimizer & Loss
     initial_lr = args.lr if args.lr is not None else net_config.get("learning_rate", 1e-4)

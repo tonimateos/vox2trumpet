@@ -5,12 +5,12 @@ import os
 # Ensure we can import from local dir
 sys.path.append(os.getcwd())
 
-from model import NeuralGuitar
+from model import Vox2Trumpet
 from loss import MultiResolutionSTFTLoss
 
-def test_neural_guitar():
+def test_vox2trumpet():
     print("========================================")
-    print("Verifying Neural Guitar Project Components")
+    print("Verifying Vox2Trumpet Project Components")
     print("========================================")
     
     # 1. Instantiate Model
@@ -25,7 +25,7 @@ def test_neural_guitar():
         "use_noise": True,
         "eps": 1e-7
     }
-    model = NeuralGuitar(config=config)
+    model = Vox2Trumpet(config=config)
     print("      Model created successfully.")
     
     # 2. Create Dummy Inputs
@@ -63,4 +63,4 @@ def test_neural_guitar():
         raise e
 
 if __name__ == "__main__":
-    test_neural_guitar()
+    test_vox2trumpet()

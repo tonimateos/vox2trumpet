@@ -3,10 +3,10 @@ import os
 import json
 import librosa
 import numpy as np
-from model import NeuralGuitar
+from model import Vox2Trumpet
 from preprocess import extract_features
 
-class NeuralGuitarCore:
+class Vox2TrumpetCore:
     def __init__(self, checkpoint_path="checkpoints/latest.pth", config_path="config.json", config_name="tiny"):
         if torch.cuda.is_available():
             self.device = torch.device('cuda')
@@ -23,7 +23,7 @@ class NeuralGuitarCore:
         self.config = all_configs[config_name]
         
         # 2. Initialize Model
-        self.model = NeuralGuitar(config=self.config).to(self.device)
+        self.model = Vox2Trumpet(config=self.config).to(self.device)
         
         # 3. Load Checkpoint
         self.checkpoint_loaded = False

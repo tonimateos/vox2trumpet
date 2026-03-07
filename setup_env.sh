@@ -2,7 +2,7 @@
 set -e
 
 echo "=============================================="
-echo "Initializing Neural Guitar Environment"
+echo "Initializing Vox2Trumpet Environment"
 echo "=============================================="
 
 # 0. Define Python Version (Using 3.9 for PyTorch compatibility)

@@ -3,14 +3,14 @@ import argparse
 import torch
 import torchaudio
 import json
-from model import NeuralGuitar
+from model import Vox2Trumpet
 from preprocess import extract_features
-from core import NeuralGuitarCore
+from core import Vox2TrumpetCore
 import scipy.io.wavfile as wavfile
 
 def inference(args):
     # 1. Initialize Core
-    core = NeuralGuitarCore(
+    core = Vox2TrumpetCore(
         checkpoint_path=args.checkpoint,
         config_path=args.config_file,
         config_name=args.config_name

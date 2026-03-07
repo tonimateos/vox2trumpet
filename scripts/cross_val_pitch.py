@@ -40,7 +40,7 @@ def cross_validate_pitch(fpath):
     print(f"[CREPE] Hits Ceiling: {crepe_hits}/{f0_crepe.numel()}")
 
 if __name__ == "__main__":
-    f = "data/raw/guitarset/05_Jazz3-150-C_comp_mic.wav"
+    f = "data/raw/urmp/trumpet_only/AuSep_1_tpt_42_Arioso.wav"
     if os.path.exists(f):
         cross_validate_pitch(f)
     else:
