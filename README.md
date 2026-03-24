@@ -62,7 +62,7 @@ graph TD
     Softmax --> Output["Pitch Estimate<br/>(360 Cent Bins)"]
 
     style Input fill:#f9f,stroke:#333,stroke-width:2px
-    style Output fill:#ccf,stroke:#333,stroke-width:2px
+    style Output fill:#f9f,stroke:#333,stroke-width:2px
 ```
 
 **Model Details:**
@@ -215,8 +215,8 @@ The model follows the **Control-Synthesis** paradigm, separating the "Brain" (Ne
 
         style InF0 fill:#f9f,stroke:#333,stroke-width:2px
         style InLoud fill:#f9f,stroke:#333,stroke-width:2px
-        style OutHarm fill:#ccf,stroke:#333,stroke-width:2px
-        style OutNoise fill:#ccf,stroke:#333,stroke-width:2px
+        style OutHarm fill:#f9f,stroke:#333,stroke-width:2px
+        style OutNoise fill:#f9f,stroke:#333,stroke-width:2px
     ```
 
     - **Future-Proofing**: While the GRU is our "lean and mean" baseline, the modular design allows us to swap in a **Transformer-based decoder** if we need to model more complex, long-range musical dependencies in the future.
