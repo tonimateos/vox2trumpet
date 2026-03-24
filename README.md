@@ -44,22 +44,22 @@ The encoder uses a pre-trained **CREPE** model. Below is its internal convolutio
 
 ```mermaid
 graph TD
-    Input[Audio Input<br/>1024 samples @ 16kHz] --> C1[Conv1: 512 filters<br/>Stride 4]
-    C1 --> P1[Max Pool 2x]
-    P1 --> C2[Conv2: 64 filters<br/>Stride 1]
-    C2 --> P2[Max Pool 2x]
-    P2 --> C3[Conv3: 64 filters<br/>Stride 1]
-    C3 --> P3[Max Pool 2x]
-    P3 --> C4[Conv4: 64 filters<br/>Stride 1]
-    C4 --> P4[Max Pool 2x]
-    P4 --> C5[Conv5: 64 filters<br/>Stride 1]
-    C5 --> P5[Max Pool 2x]
-    P5 --> C6[Conv6: 64 filters<br/>Stride 1]
-    C6 --> P6[Max Pool 2x]
-    P6 --> Flatten[Flatten]
-    Flatten --> Dense[Dense Layer<br/>360 Units]
-    Dense --> Softmax[Softmax]
-    Softmax --> Output[Pitch Estimate<br/>(360 Cent Bins)]
+    Input["Audio Input<br/>1024 samples @ 16kHz"] --> C1["Conv1: 512 filters<br/>Stride 4"]
+    C1 --> P1["Max Pool 2x"]
+    P1 --> C2["Conv2: 64 filters<br/>Stride 1"]
+    C2 --> P2["Max Pool 2x"]
+    P2 --> C3["Conv3: 64 filters<br/>Stride 1"]
+    C3 --> P3["Max Pool 2x"]
+    P3 --> C4["Conv4: 64 filters<br/>Stride 1"]
+    C4 --> P4["Max Pool 2x"]
+    P4 --> C5["Conv5: 64 filters<br/>Stride 1"]
+    C5 --> P5["Max Pool 2x"]
+    P5 --> C6["Conv6: 64 filters<br/>Stride 1"]
+    C6 --> P6["Max Pool 2x"]
+    P6 --> Flatten["Flatten"]
+    Flatten --> Dense["Dense Layer<br/>360 Units"]
+    Dense --> Softmax["Softmax"]
+    Softmax --> Output["Pitch Estimate<br/>(360 Cent Bins)"]
 
     style Input fill:#f9f,stroke:#333,stroke-width:2px
     style Output fill:#ccf,stroke:#333,stroke-width:2px
