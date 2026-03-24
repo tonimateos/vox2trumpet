@@ -38,7 +38,32 @@ pinned: false
           └──────────▶──│ Noise Filter Bank     │──┘
                         └───────────────────────┘
 ```
+    
+### 🎙️ CREPE Deepnet Architecture
+The encoder uses a pre-trained **CREPE** model. Below is its internal convolutional structure:
 
+```mermaid
+graph TD
+    Input[Audio Input<br/>1024 samples @ 16kHz] --> C1[Conv1: 512 filters<br/>Stride 4]
+    C1 --> P1[Max Pool 2x]
+    P1 --> C2[Conv2: 64 filters<br/>Stride 1]
+    C2 --> P2[Max Pool 2x]
+    P2 --> C3[Conv3: 64 filters<br/>Stride 1]
+    C3 --> P3[Max Pool 2x]
+    P3 --> C4[Conv4: 64 filters<br/>Stride 1]
+    C4 --> P4[Max Pool 2x]
+    P4 --> C5[Conv5: 64 filters<br/>Stride 1]
+    C5 --> P5[Max Pool 2x]
+    P5 --> C6[Conv6: 64 filters<br/>Stride 1]
+    C6 --> P6[Max Pool 2x]
+    P6 --> Flatten[Flatten]
+    Flatten --> Dense[Dense Layer<br/>360 Units]
+    Dense --> Softmax[Softmax]
+    Softmax --> Output[Pitch Estimate<br/>(360 Cent Bins)]
+
+    style Input fill:#f9f,stroke:#333,stroke-width:2px
+    style Output fill:#ccf,stroke:#333,stroke-width:2px
+```
 
 **Model Details:**
 - **Decoder**: Single-layer GRU (Gated Recurrent Unit) to capture temporal dependencies (slurs, vibrato, and decay).
@@ -126,6 +151,12 @@ To understand the training dynamics, here is how the data is handled under the h
 - **Random Cropping**: Every time the model accesses a file, it picks a **random 1-second segment** (16,000 samples). This ensures that the model sees different parts of the performances in every epoch, significantly increasing data diversity.
 - **Batches**: With a **Batch Size of 16**, the model processes 16 different 1-second segments simultaneously on your GPU.
 - **Epochs**: One epoch means the model has "visited" every one of the training files exactly once. Because of the random crop, training for 100 epochs means the model effectively hears thousands of unique snippets of trumpet playing.
+    
+### 🎼 The URMP Dataset
+The **University of Rochester Multi-Modal Music Performance (URMP)** dataset is a collection of high-quality ensemble performances where each instrument was recorded individually in a professional studio setting.
+- **Instrument Isolation**: We focus specifically on the **trumpet** tracks. These isolated recordings are essential for timbre transfer because they provide "clean" examples of the target instrument's spectral characteristics without bleed from other instruments.
+- **Multi-Modal Source**: While the dataset includes video and MIDI, this project primarily utilizes the 48kHz audio (resampled to 16kHz) as the ground truth for spectral analysis.
+- **Professional Performance**: The tracks cover various musical styles and include sophisticated techniques like vibrato and slurs, which are modeled by the GRU decoder.
 
 ## 📈 Monitoring & Debugging
 
@@ -156,6 +187,11 @@ You don't need to do anything special to resume. If you stop the script and run 
 The model follows the **Control-Synthesis** paradigm, separating the "Brain" (Neural Network) from the "Body" (DSP Synthesizer).
 
 - **Encoder**: Extracts pitch ($f_0$) using a pre-trained **CREPE** model and A-weighted Loudness.
+    - **CREPE Architecture**: This project utilizes **CREPE** (Convolutional REpresentation for Pitch Estimation), a deep convolutional neural network. 
+        - **Structure**: It consists of 6 convolutional layers followed by a fully connected output layer.
+        - **Frequency Resolution**: The model outputs a probability distribution over 360 pitch bins, each 20 cents wide, covering 6 octaves (from 32.7 Hz to 1975.5 Hz).
+        - **Input**: Operates on raw 16kHz audio waveforms using a 1024-sample window.
+        - **Capacity**: We default to the `tiny` model for efficiency, though `full` can be used for maximum precision during offline preprocessing.
 - **Decoder**: A **GRU** (Gated Recurrent Unit) maps these control signals to synthesizer parameters.
     - **Why GRU?**: We chose a GRU over a Transformer because it is significantly more efficient for real-time audio synthesis. GRUs have a strong "inductive bias" for sequences where the next frame depends heavily on the previous one (temporal persistence).
     - **Future-Proofing**: While the GRU is our "lean and mean" baseline, the modular design allows us to swap in a **Transformer-based decoder** if we need to model more complex, long-range musical dependencies in the future.
