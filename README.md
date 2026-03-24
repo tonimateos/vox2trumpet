@@ -194,6 +194,31 @@ The model follows the **Control-Synthesis** paradigm, separating the "Brain" (Ne
         - **Capacity**: We default to the `tiny` model for efficiency, though `full` can be used for maximum precision during offline preprocessing.
 - **Decoder**: A **GRU** (Gated Recurrent Unit) maps these control signals to synthesizer parameters.
     - **Why GRU?**: We chose a GRU over a Transformer because it is significantly more efficient for real-time audio synthesis. GRUs have a strong "inductive bias" for sequences where the next frame depends heavily on the previous one (temporal persistence).
+    
+    #### 🧠 Decoder (Brain) Internal Structure
+    The decoder transforms control signals into high-dimensional synthesizer parameters:
+
+    ```mermaid
+    graph TD
+        InF0["Log F0 (Pitch)"] --> Concat["Concatenate [Batch, Time, 2]"]
+        InLoud["Loudness (Volume)"] --> Concat
+        Concat --> GRU["GRU Layer<br/>(Hidden: 512, 1 Layer)"]
+        GRU --> MLP["MLP Projection<br/>(Linear Layer)"]
+        MLP --> Split["Split (166 Units)"]
+        Split --> Harm["Harmonic Branch<br/>(101 Units)"]
+        Split --> Noise["Noise Branch<br/>(65 Units)"]
+        Harm --> Softmax["Softmax Activation<br/>(Timbre Distribution)"]
+        Softmax --> MulLoud["Multiply by Input Loudness"]
+        MulLoud --> OutHarm["Harmonic Amplitudes"]
+        Noise --> Sigmoid["Sigmoid Activation"]
+        Sigmoid --> OutNoise["Noise Magnitudes"]
+
+        style InF0 fill:#f9f,stroke:#333,stroke-width:2px
+        style InLoud fill:#f9f,stroke:#333,stroke-width:2px
+        style OutHarm fill:#ccf,stroke:#333,stroke-width:2px
+        style OutNoise fill:#ccf,stroke:#333,stroke-width:2px
+    ```
+
     - **Future-Proofing**: While the GRU is our "lean and mean" baseline, the modular design allows us to swap in a **Transformer-based decoder** if we need to model more complex, long-range musical dependencies in the future.
 - **Synthesizer**:
     - **Harmonic Synthesizer**: Additive synthesis (sum of sines) for the tonal trumpet vibration.
