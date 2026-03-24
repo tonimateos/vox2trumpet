@@ -74,6 +74,7 @@ class Vox2Trumpet(nn.Module):
         
         # 2. Decoder (GRU)
         # x: [B, T, hidden_size]
+        # _: we don't need the hidden state of the GRU
         x, _ = self.gru(decoder_input)
         
         # 3. Parameter Projection
@@ -85,27 +86,13 @@ class Vox2Trumpet(nn.Module):
         noise_params = params[..., self.n_harmonics:]
         
         # 4. Activation / Mapping
-        # Harmonic Amps: 
-        # We want a distribution that sums to 1, multiplied by a 'global' amplitude.
-        # Here we model the distribution. The loudness envelope physically comes 
-        # from the loudness input, but we usually let the network modulate it too.
-        # Creating a "Amplitudes" tensor:
-        
-        # Softmax for distribution valid for timber
+        # For the spectral envelope, we use a Softmax to ensure the harmonics 
+        # form a valid distribution (sum to 1.0).
         harm_dist = F.softmax(harm_params, dim=-1)
         
-        # Scale by input loudness (converted from log/dB to linear amp)? 
-        # Or let the network predict absolute amplitude?
-        # Standard DDSP: The network predicts the distribution, and we multiply 
-        # by the original loudness feature (linearized) to enforce the volume contour.
-        # Linear Average Loudness ~ 10^(loudness_db / 20)
-        # For this minimal implementation, we assume 'loudness' is passed as 
-        # linear amplitude envelope or we rely on the network to learn gain.
-        # Let's simple use the Modified Softmax approach:
-        # A = exp(harm_params) ...
-        # But explicitly using input loudness as a control signal is stronger.
-        
-        # Setup: loudness is linear amplitude [0, 1]
+        # To enforce the volume contour, we scale the distribution by the 
+        # input loudness. Since our preprocessing extracts linear RMS amplitude,
+        # we can multiply directly to get the final harmonic amplitudes.
         harm_amps = harm_dist * loudness 
         
         # Noise Params:
