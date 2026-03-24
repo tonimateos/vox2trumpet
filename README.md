@@ -95,6 +95,15 @@ Run the verification script to check that the Vox2Trumpet model and DSP componen
 ./venv/bin/python verify_project.py
 ```
 
+### 3. Running the GUI Locally
+Launch the interactive Gradio interface to perform timbre transfer on your own voice or uploaded recordings.
+
+```bash
+# Start the web server
+./venv/bin/python app.py
+```
+Once started, open the local URL (typically `http://127.0.0.1:7860`) in your web browser.
+
 ## 🛠️ Data & Training Pipeline
 
 ### 1. Download Dataset (URMP)

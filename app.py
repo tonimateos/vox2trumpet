@@ -186,7 +186,7 @@ with gr.Blocks(theme=gr.themes.Soft(primary_hue="blue", neutral_hue="slate")) as
     with gr.Tabs():
         with gr.Tab("Synthesizer"):
             gr.Markdown("""
-            Convert any monophonic audio (whistling, humming, singing) into a realistic trumpet sound!
+            Convert any monophonic audio (whistling, humming, singing) into a trumpet sound!
             """)
             
             with gr.Row():
